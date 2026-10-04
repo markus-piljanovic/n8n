@@ -15,6 +15,21 @@ Läuft jede Nacht im Hintergrund und verarbeitet neue Rechnungs-Mails (max. 10 p
 - Legt das PDF in Google Drive ab
 - Setzt Gmail-Labels: "Geprüft" für jede verarbeitete Mail, zusätzlich "Rechnung" für echte Rechnungen
 
+![Workflow-Übersicht](images/workflow-gesamt.png)
+
+<details>
+<summary>Workflow in drei Ausschnitten (besser lesbar)</summary>
+
+![Schritte 1 bis 3](images/workflow-schritte-1-3.png)
+![Schritte 4 bis 6](images/workflow-schritte-4-6.png)
+![Schritte 7 und 8, Fehlerbehandlung](images/workflow-schritte-7-8.png)
+
+</details>
+
+Beispielausgabe im Google Sheet (erfundene Daten):
+
+![Beispielausgabe im Google Sheet](images/ergebnis-sheet-beispiel.png)
+
 ### Error Workflow (Rechnungserfassung)
 
 Schickt bei einem abgebrochenen Lauf eine Telegram-Nachricht mit Workflow, Node, Fehlertext und Link zur Ausführung.
