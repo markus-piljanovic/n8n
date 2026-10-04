@@ -2,79 +2,122 @@
   "name": "E-Mail Rechnungserfassung",
   "nodes": [
     {
-      "parameters": { "rule": { "interval": [ {} ] } },
       "id": "5626e4c2-b591-44c2-85de-ea4169307772",
       "name": "Schedule Trigger",
       "type": "n8n-nodes-base.scheduleTrigger",
       "typeVersion": 1.3,
-      "position": [-48, 448]
+      "position": [
+        -48,
+        448
+      ],
+      "parameters": {
+        "rule": {
+          "interval": [
+            {}
+          ]
+        }
+      }
     },
     {
-      "parameters": {
-        "operation": "getAll",
-        "limit": 10,
-        "simple": false,
-        "filters": {
-          "labelIds": ["INBOX"],
-          "q": "has:attachment filename:pdf -label:Rechnung after:2025/01/01"
-        },
-        "options": { "downloadAttachments": true }
-      },
       "id": "08d2c901-f582-4292-baf4-a72447a00375",
       "name": "Get Invoice Mails",
       "webhookId": "85d74620-ad03-42d6-bdb5-7caf8c8178ce",
       "type": "n8n-nodes-base.gmail",
       "typeVersion": 2.2,
-      "position": [128, 448],
-      "credentials": { "gmailOAuth2": { "id": "YOUR_GMAIL_CREDENTIAL_ID", "name": "Gmail account" } }
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 5000,
+      "position": [
+        128,
+        448
+      ],
+      "parameters": {
+        "operation": "getAll",
+        "limit": 10,
+        "simple": false,
+        "filters": {
+          "labelIds": [
+            "INBOX"
+          ],
+          "q": "has:attachment filename:pdf -label:Geprüft after:2025/01/01"
+        },
+        "options": {
+          "downloadAttachments": true
+        }
+      },
+      "credentials": {
+        "gmailOAuth2": {
+          "id": "YOUR_GMAIL_CREDENTIAL_ID",
+          "name": "Gmail account"
+        }
+      }
     },
     {
-      "parameters": {
-        "mode": "runOnceForEachItem",
-        "jsCode": "// ===== Find Invoice PDFs =====\n// Zweck: Pro Mail das beste PDF aus den Anhängen auswählen.\n// Ergebnis: json.hatPDF (true/false), json.dateiname, binary.attachment_0 (nur das gewählte PDF)\n\n// --- Konstanten ---\n// Dateinamen-Wörter, die auf KEINE Rechnung hindeuten (Fallback-Ausschluss)\nconst muell = /(widerruf|agb|storno|retoure|return|terms|datenschutz|hinweis|newsletter)/i;\n// Dateinamen-Wörter, die auf eine Rechnung hindeuten (haben Vorrang)\nconst gut = /(rechnung|invoice|beleg|quittung|bill|receipt)/i;\n\n// --- 1. Alle PDF-Anhänge der Mail sammeln ---\n// PDF = MIME-Typ application/pdf ODER Dateiendung .pdf\nconst binary = $input.item.binary || {};\nconst pdfKeys = Object.keys(binary).filter(k => {\n  const a = binary[k];\n  return a.mimeType === 'application/pdf' || (a.fileName || '').toLowerCase().endsWith('.pdf');\n});\n\n// --- 2. Bestes PDF wählen ---\n// Erst: Dateiname enthält ein \"Rechnungs\"-Wort. Sonst: erstes PDF ohne \"Müll\"-Wort.\nconst key = pdfKeys.find(k => gut.test(binary[k].fileName || ''))\n         || pdfKeys.find(k => !muell.test(binary[k].fileName || ''));\n\n// --- 3a. Kein brauchbares PDF: Flags auf \"nein\" setzen, Binary leeren ---\nif (!key) {\n  $input.item.binary = {};\n  $input.item.json.hatPDF = false;\n  $input.item.json.dateiname = '';\n  return $input.item;\n}\n\n// --- 3b. PDF gefunden: als attachment_0 durchreichen, Flags setzen ---\nconst fileName = binary[key].fileName || '';\n$input.item.binary = { attachment_0: binary[key] };\n$input.item.json.hatPDF = true;\n$input.item.json.dateiname = fileName;\nreturn $input.item;"
-      },
       "id": "cc5afdba-e7d4-467e-a4e8-05a1e6114ba9",
       "name": "Find Invoice PDFs",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [336, 448]
+      "position": [
+        336,
+        448
+      ],
+      "parameters": {
+        "mode": "runOnceForEachItem",
+        "jsCode": "// ===== Find Invoice PDFs =====\n// Zweck: Pro Mail das beste PDF aus den Anhängen auswählen.\n// Ergebnis: json.hatPDF (true/false), json.dateiname, binary.attachment_0 (nur das gewählte PDF)\n\n// --- Konstanten ---\n// Dateinamen-Wörter, die auf KEINE Rechnung hindeuten (Fallback-Ausschluss)\nconst muell = /(widerruf|agb|storno|retoure|return|terms|datenschutz|hinweis|newsletter)/i;\n// Dateinamen-Wörter, die auf eine Rechnung hindeuten (haben Vorrang)\nconst gut = /(rechnung|invoice|beleg|quittung|bill|receipt)/i;\n\n// --- 1. Alle PDF-Anhänge der Mail sammeln ---\n// PDF = MIME-Typ application/pdf ODER Dateiendung .pdf\nconst binary = $input.item.binary || {};\nconst pdfKeys = Object.keys(binary).filter(k => {\n  const a = binary[k];\n  return a.mimeType === 'application/pdf' || (a.fileName || '').toLowerCase().endsWith('.pdf');\n});\n\n// --- 2. Bestes PDF wählen ---\n// Erst: Dateiname enthält ein \"Rechnungs\"-Wort. Sonst: erstes PDF ohne \"Müll\"-Wort.\nconst key = pdfKeys.find(k => gut.test(binary[k].fileName || ''))\n         || pdfKeys.find(k => !muell.test(binary[k].fileName || ''));\n\n// --- 3a. Kein brauchbares PDF: Flags auf \"nein\" setzen, Binary leeren ---\nif (!key) {\n  $input.item.binary = {};\n  $input.item.json.hatPDF = false;\n  $input.item.json.dateiname = '';\n  return $input.item;\n}\n\n// --- 3b. PDF gefunden: als attachment_0 durchreichen, Flags setzen ---\nconst fileName = binary[key].fileName || '';\n$input.item.binary = { attachment_0: binary[key] };\n$input.item.json.hatPDF = true;\n$input.item.json.dateiname = fileName;\nreturn $input.item;"
+      }
     },
     {
-      "parameters": {
-        "operation": "pdf",
-        "binaryPropertyName": "attachment_0",
-        "options": { "keepSource": "both" }
-      },
       "id": "70fa46ab-c5eb-47c5-8e02-eb55fc12107d",
       "name": "Extract from File",
       "type": "n8n-nodes-base.extractFromFile",
       "typeVersion": 1.1,
       "alwaysOutputData": true,
-      "position": [512, 448],
-      "onError": "continueRegularOutput"
+      "onError": "continueRegularOutput",
+      "position": [
+        512,
+        448
+      ],
+      "parameters": {
+        "operation": "pdf",
+        "binaryPropertyName": "attachment_0",
+        "options": {
+          "keepSource": "both"
+        }
+      }
     },
     {
+      "id": "b8343a0d-8738-42be-a664-9c617db1bada",
+      "name": "Build Prompt Text",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.5,
+      "position": [
+        688,
+        448
+      ],
       "parameters": {
         "assignments": {
           "assignments": [
             {
               "id": "a1",
               "name": "promptText",
-              "value": "=Betreff: {{ $json.subject }}\nAbsender: {{ $json.from.text }}\n\n{{ $json.text || \"(kein PDF-Text extrahiert)\" }}",
+              "value": "=Betreff: {{ $json.subject }}\nMail-Absender (nicht der Rechnungsaussteller): {{ $json.from.text }}\n\n{{ $json.text || \"(kein PDF-Text extrahiert)\" }}",
               "type": "string"
             }
           ]
         },
         "includeOtherFields": true,
         "options": {}
-      },
-      "id": "b8343a0d-8738-42be-a664-9c617db1bada",
-      "name": "Build Prompt Text",
-      "type": "n8n-nodes-base.set",
-      "typeVersion": 3.5,
-      "position": [688, 448]
+      }
     },
     {
+      "id": "b7b2f94e-2356-4c14-b461-f77193ad918d",
+      "name": "Parse Invoice Data",
+      "type": "@n8n/n8n-nodes-langchain.informationExtractor",
+      "typeVersion": 1.2,
+      "position": [
+        912,
+        528
+      ],
       "parameters": {
         "text": "={{ $json.promptText }}",
         "attributes": {
@@ -107,97 +150,164 @@
             }
           ]
         },
-        "options": { "batching": { "batchSize": 1 } }
-      },
-      "id": "b7b2f94e-2356-4c14-b461-f77193ad918d",
-      "name": "Parse Invoice Data",
-      "type": "@n8n/n8n-nodes-langchain.informationExtractor",
-      "typeVersion": 1.2,
-      "position": [912, 528]
+        "options": {
+          "batching": {
+            "batchSize": 1
+          }
+        }
+      }
     },
     {
-      "parameters": {
-        "model": { "__rl": true, "mode": "list", "value": "gpt-5-mini", "cachedResultName": "gpt-5-mini" },
-        "builtInTools": {},
-        "options": { "reasoningEffort": "low", "timeout": 60000, "maxRetries": 2 }
-      },
       "id": "dc055c3d-8ef9-4068-a663-0fd65e1c657d",
       "name": "OpenAI Chat Model",
       "type": "@n8n/n8n-nodes-langchain.lmChatOpenAi",
       "typeVersion": 1.3,
-      "position": [912, 704],
-      "credentials": { "openAiApi": { "id": "YOUR_OPENAI_CREDENTIAL_ID", "name": "OpenAI account" } }
+      "position": [
+        912,
+        704
+      ],
+      "parameters": {
+        "model": {
+          "__rl": true,
+          "mode": "list",
+          "value": "gpt-5-mini",
+          "cachedResultName": "gpt-5-mini"
+        },
+        "builtInTools": {},
+        "options": {
+          "reasoningEffort": "low",
+          "timeout": 60000,
+          "maxRetries": 2
+        }
+      },
+      "credentials": {
+        "openAiApi": {
+          "id": "YOUR_OPENAI_CREDENTIAL_ID",
+          "name": "OpenAI account"
+        }
+      }
     },
     {
-      "parameters": { "mode": "combine", "combineBy": "combineByPosition", "options": {} },
       "id": "6ba2ba94-f77f-4bd2-bf3f-7d2e5293cb04",
       "name": "Combine PDF and Extraction",
       "type": "n8n-nodes-base.merge",
       "typeVersion": 3.2,
-      "position": [1232, 448]
+      "position": [
+        1232,
+        448
+      ],
+      "parameters": {
+        "mode": "combine",
+        "combineBy": "combineByPosition",
+        "options": {}
+      }
     },
     {
+      "id": "9987e237-0344-40ad-bb13-3301955c1c63",
+      "name": "Is Invoice?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        1440,
+        448
+      ],
       "parameters": {
         "conditions": {
-          "options": { "caseSensitive": true, "leftValue": "", "typeValidation": "strict", "version": 3 },
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 3
+          },
           "conditions": [
             {
               "id": "c1",
               "leftValue": "={{ String($json.output.istBeleg) }}",
               "rightValue": "true",
-              "operator": { "type": "string", "operation": "equals" }
+              "operator": {
+                "type": "string",
+                "operation": "equals"
+              }
             },
             {
               "id": "c2",
               "leftValue": "={{ Number($json.output.Betrag) }}",
               "rightValue": 0,
-              "operator": { "type": "number", "operation": "gt" }
+              "operator": {
+                "type": "number",
+                "operation": "gt"
+              }
             }
           ],
           "combinator": "and"
         },
         "options": {}
-      },
-      "id": "9987e237-0344-40ad-bb13-3301955c1c63",
-      "name": "Is Invoice?",
-      "type": "n8n-nodes-base.if",
-      "typeVersion": 2.3,
-      "position": [1440, 448]
+      }
     },
     {
+      "id": "1ccf20b2-e82a-48ba-a81c-d7c323097798",
+      "name": "Set Key",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.5,
+      "position": [
+        2528,
+        256
+      ],
       "parameters": {
         "assignments": {
           "assignments": [
             {
               "id": "k1",
               "name": "schluessel",
-              "value": "={{ $('Combine PDF and Extraction').item.json.output.Rechnungsnummer || $('Combine PDF and Extraction').item.json.id }}",
+              "value": "={{ ($('Combine PDF and Extraction').item.json.output.Absender || '').toLowerCase().split(/[\\s,.-]+/)[0] + '-' + ($('Combine PDF and Extraction').item.json.output.Rechnungsnummer || $('Combine PDF and Extraction').item.json.id) }}",
               "type": "string"
             }
           ]
         },
         "includeOtherFields": true,
         "options": {}
-      },
-      "id": "1ccf20b2-e82a-48ba-a81c-d7c323097798",
-      "name": "Set Key",
-      "type": "n8n-nodes-base.set",
-      "typeVersion": 3.5,
-      "position": [2528, 256]
+      }
     },
     {
-      "parameters": { "compare": "selectedFields", "fieldsToCompare": "schluessel", "options": {} },
       "id": "accd7f10-553c-4dac-ab27-004986214fbc",
       "name": "Remove Duplicates",
       "type": "n8n-nodes-base.removeDuplicates",
       "typeVersion": 1.1,
-      "position": [2704, 256]
+      "position": [
+        2704,
+        256
+      ],
+      "parameters": {
+        "compare": "selectedFields",
+        "fieldsToCompare": "schluessel",
+        "options": {}
+      }
     },
     {
+      "id": "1efa9657-91cb-497e-a895-0482e5d3e745",
+      "name": "Rechnung ins Sheet",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 5000,
+      "position": [
+        2880,
+        256
+      ],
       "parameters": {
         "operation": "appendOrUpdate",
-        "documentId": { "__rl": true, "mode": "id", "value": "YOUR_SHEET_ID" },
-        "sheetName": { "__rl": true, "mode": "id", "value": "YOUR_SHEET_GID", "cachedResultName": "Rechnungen 2026" },
+        "documentId": {
+          "__rl": true,
+          "mode": "id",
+          "value": "YOUR_SHEET_ID"
+        },
+        "sheetName": {
+          "__rl": true,
+          "mode": "id",
+          "value": "YOUR_SHEET_GID",
+          "cachedResultName": "Rechnungen 2026"
+        },
         "columns": {
           "mappingMode": "defineBelow",
           "value": {
@@ -209,29 +319,102 @@
             "Dateiname": "={{ $json.dateiname }}",
             "Schlüssel": "={{ $json.schluessel }}"
           },
-          "matchingColumns": ["Schlüssel"],
+          "matchingColumns": [
+            "Schlüssel"
+          ],
           "schema": [
-            { "id": "Absender", "displayName": "Absender", "required": false, "defaultMatch": false, "display": true, "type": "string", "canBeUsedToMatch": true, "removed": false },
-            { "id": "Rechnungsnummer", "displayName": "Rechnungsnummer", "required": false, "defaultMatch": false, "display": true, "type": "string", "canBeUsedToMatch": true, "removed": false },
-            { "id": "Datum", "displayName": "Datum", "required": false, "defaultMatch": false, "display": true, "type": "string", "canBeUsedToMatch": true, "removed": false },
-            { "id": "Betrag", "displayName": "Betrag", "required": false, "defaultMatch": false, "display": true, "type": "string", "canBeUsedToMatch": true, "removed": false },
-            { "id": "Währung", "displayName": "Währung", "required": false, "defaultMatch": false, "display": true, "type": "string", "canBeUsedToMatch": true, "removed": false },
-            { "id": "Dateiname", "displayName": "Dateiname", "required": false, "defaultMatch": false, "display": true, "type": "string", "canBeUsedToMatch": true, "removed": false },
-            { "id": "Schlüssel", "displayName": "Schlüssel", "required": false, "defaultMatch": false, "display": true, "type": "string", "canBeUsedToMatch": true, "removed": false }
+            {
+              "id": "Absender",
+              "displayName": "Absender",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "Rechnungsnummer",
+              "displayName": "Rechnungsnummer",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "Datum",
+              "displayName": "Datum",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "Betrag",
+              "displayName": "Betrag",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "Währung",
+              "displayName": "Währung",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "Dateiname",
+              "displayName": "Dateiname",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "Schlüssel",
+              "displayName": "Schlüssel",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            }
           ],
           "attemptToConvertTypes": false,
           "convertFieldsToString": false
         },
         "options": {}
       },
-      "id": "1efa9657-91cb-497e-a895-0482e5d3e745",
-      "name": "Rechnung ins Sheet",
-      "type": "n8n-nodes-base.googleSheets",
-      "typeVersion": 4.7,
-      "position": [2880, 256],
-      "credentials": { "googleSheetsOAuth2Api": { "id": "YOUR_SHEETS_CREDENTIAL_ID", "name": "Google Sheets account" } }
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "YOUR_SHEETS_CREDENTIAL_ID",
+          "name": "Google Sheets account"
+        }
+      }
     },
     {
+      "id": "46158bcd-c004-47dd-9dad-787a2e5c1b2e",
+      "name": "Reattach PDF Binary",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.5,
+      "position": [
+        3296,
+        256
+      ],
       "parameters": {
         "assignments": {
           "assignments": [
@@ -245,102 +428,170 @@
         },
         "includeOtherFields": true,
         "options": {}
-      },
-      "id": "46158bcd-c004-47dd-9dad-787a2e5c1b2e",
-      "name": "Reattach PDF Binary",
-      "type": "n8n-nodes-base.set",
-      "typeVersion": 3.5,
-      "position": [3296, 256]
+      }
     },
     {
+      "id": "9779e1e2-c9fa-41d3-b50c-be3a918f4d09",
+      "name": "Has PDF?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        3104,
+        256
+      ],
       "parameters": {
         "conditions": {
-          "options": { "caseSensitive": true, "leftValue": "", "typeValidation": "strict", "version": 1 },
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 1
+          },
           "combinator": "and",
           "conditions": [
             {
               "id": "h1",
               "leftValue": "={{ $('Remove Duplicates').item.json.hatPDF }}",
               "rightValue": "true",
-              "operator": { "type": "boolean", "operation": "true", "singleValue": true }
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
             }
           ]
         },
         "options": {}
-      },
-      "id": "9779e1e2-c9fa-41d3-b50c-be3a918f4d09",
-      "name": "Has PDF?",
-      "type": "n8n-nodes-base.if",
-      "typeVersion": 2.3,
-      "position": [3104, 256]
+      }
     },
     {
-      "parameters": {
-        "inputDataFieldName": "attachment_0",
-        "name": "={{ $('Remove Duplicates').item.json.dateiname }}",
-        "driveId": { "__rl": true, "mode": "list", "value": "My Drive" },
-        "folderId": { "__rl": true, "mode": "id", "value": "YOUR_DRIVE_FOLDER_ID" },
-        "options": {}
-      },
       "id": "28264243-ca24-475a-9b27-b56b608d3c3c",
       "name": "Upload to Drive",
       "type": "n8n-nodes-base.googleDrive",
       "typeVersion": 3,
-      "position": [3488, 256],
-      "credentials": { "googleDriveOAuth2Api": { "id": "YOUR_DRIVE_CREDENTIAL_ID", "name": "Google Drive account" } }
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 5000,
+      "position": [
+        3488,
+        256
+      ],
+      "parameters": {
+        "inputDataFieldName": "attachment_0",
+        "name": "={{ $('Remove Duplicates').item.json.dateiname }}",
+        "driveId": {
+          "__rl": true,
+          "mode": "list",
+          "value": "My Drive"
+        },
+        "folderId": {
+          "__rl": true,
+          "mode": "id",
+          "value": "YOUR_DRIVE_FOLDER_ID"
+        },
+        "options": {}
+      },
+      "credentials": {
+        "googleDriveOAuth2Api": {
+          "id": "YOUR_DRIVE_CREDENTIAL_ID",
+          "name": "Google Drive account"
+        }
+      }
     },
     {
-      "parameters": {
-        "operation": "addLabels",
-        "messageId": "={{ $('Get Invoice Mails').item.json.id }}",
-        "labelIds": ["YOUR_LABEL_ID_GEPRUEFT"]
-      },
       "id": "bc014b49-ee6c-4b1c-9112-ea7d40d17af0",
       "name": "Als geprüft markieren",
       "webhookId": "4e760b1b-838b-43ef-a1ab-0809ac4b6483",
       "type": "n8n-nodes-base.gmail",
       "typeVersion": 2.2,
-      "position": [3808, 496],
-      "credentials": { "gmailOAuth2": { "id": "YOUR_GMAIL_CREDENTIAL_ID", "name": "Gmail account" } },
-      "onError": "continueRegularOutput"
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 5000,
+      "position": [
+        3808,
+        496
+      ],
+      "parameters": {
+        "operation": "addLabels",
+        "messageId": "={{ $('Get Invoice Mails').item.json.id }}",
+        "labelIds": [
+          "YOUR_LABEL_ID_GEPRUEFT"
+        ]
+      },
+      "credentials": {
+        "gmailOAuth2": {
+          "id": "YOUR_GMAIL_CREDENTIAL_ID",
+          "name": "Gmail account"
+        }
+      }
     },
     {
+      "id": "42e45c1f-731f-494e-860c-b550d44aa1da",
+      "name": "Get Exchange Rate",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.5,
+      "onError": "continueRegularOutput",
+      "position": [
+        1968,
+        592
+      ],
       "parameters": {
         "url": "={{ (() => { const d = $json.output.Datum; if (!d) return 'https://api.frankfurter.dev/v1/latest'; const p = d.split('-'); if (p.length !== 3) return 'https://api.frankfurter.dev/v1/latest'; const iso = p[2] + '-' + p[1] + '-' + p[0]; return 'https://api.frankfurter.dev/v1/' + iso; })() }}",
         "sendQuery": true,
         "queryParameters": {
           "parameters": [
-            { "name": "from", "value": "={{ $json.output['Währung'] }}" },
-            { "name": "to", "value": "EUR" }
+            {
+              "name": "from",
+              "value": "={{ $json.output['Währung'] }}"
+            },
+            {
+              "name": "to",
+              "value": "EUR"
+            }
           ]
         },
         "options": {}
-      },
-      "id": "42e45c1f-731f-494e-860c-b550d44aa1da",
-      "name": "Get Exchange Rate",
-      "type": "n8n-nodes-base.httpRequest",
-      "typeVersion": 4.5,
-      "position": [1968, 592],
-      "onError": "continueRegularOutput"
+      }
     },
     {
-      "parameters": {
-        "assignments": {
-          "assignments": [
-            { "id": "m1", "name": "BetragEUR", "value": "={{ Number($json.output.Betrag) }}", "type": "number" },
-            { "id": "m2", "name": "WaehrungEUR", "value": "EUR", "type": "string" }
-          ]
-        },
-        "includeOtherFields": true,
-        "options": {}
-      },
       "id": "11bec47b-9d3a-4fd8-a010-a16ae494fdb0",
       "name": "Mark as EUR",
       "type": "n8n-nodes-base.set",
       "typeVersion": 3.5,
-      "position": [2224, 256]
+      "position": [
+        2224,
+        256
+      ],
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "m1",
+              "name": "BetragEUR",
+              "value": "={{ Number($json.output.Betrag) }}",
+              "type": "number"
+            },
+            {
+              "id": "m2",
+              "name": "WaehrungEUR",
+              "value": "EUR",
+              "type": "string"
+            }
+          ]
+        },
+        "includeOtherFields": true,
+        "options": {}
+      }
     },
     {
+      "id": "6797d24e-d200-48a3-8f82-7b88967a9056",
+      "name": "Apply FX Conversion",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.5,
+      "position": [
+        2224,
+        592
+      ],
       "parameters": {
         "assignments": {
           "assignments": [
@@ -372,194 +623,451 @@
         },
         "includeOtherFields": true,
         "options": {}
-      },
-      "id": "6797d24e-d200-48a3-8f82-7b88967a9056",
-      "name": "Apply FX Conversion",
-      "type": "n8n-nodes-base.set",
-      "typeVersion": 3.5,
-      "position": [2224, 592]
+      }
     },
     {
-      "parameters": {
-        "operation": "addLabels",
-        "messageId": "={{ $('Get Invoice Mails').item.json.id }}",
-        "labelIds": ["YOUR_LABEL_ID_RECHNUNG"]
-      },
       "id": "e48b7e52-82d7-4bd9-9e02-80cac88c746e",
       "name": "Rechnung labeln",
       "webhookId": "6eed1d5e-199f-4654-a753-4d1ebbd89588",
       "type": "n8n-nodes-base.gmail",
       "typeVersion": 2.2,
-      "position": [1616, 592],
-      "credentials": { "gmailOAuth2": { "id": "YOUR_GMAIL_CREDENTIAL_ID", "name": "Gmail account" } }
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 5000,
+      "position": [
+        1616,
+        592
+      ],
+      "parameters": {
+        "operation": "addLabels",
+        "messageId": "={{ $('Get Invoice Mails').item.json.id }}",
+        "labelIds": [
+          "YOUR_LABEL_ID_RECHNUNG"
+        ]
+      },
+      "credentials": {
+        "gmailOAuth2": {
+          "id": "YOUR_GMAIL_CREDENTIAL_ID",
+          "name": "Gmail account"
+        }
+      }
     },
     {
-      "parameters": {
-        "content": "## 📧 1. Mails holen\n\nAlle 4h schaut der Workflow im Postfach nach:\n- Mail hat einen **PDF-Anhang**\n- Mail hat **noch nicht** das Label \"Rechnung\"\n\nNur solche Mails werden weiterverarbeitet.",
-        "height": 604,
-        "width": 376,
-        "color": 4
-      },
       "id": "d64e8102-1750-4c6b-bafe-141fdca7464d",
       "name": "Notiz: Mails holen",
       "type": "n8n-nodes-base.stickyNote",
       "typeVersion": 1,
-      "position": [-80, 240]
+      "position": [
+        -80,
+        48
+      ],
+      "parameters": {
+        "content": "## 📧 1. Mails holen\n\nJede Nacht um Mitternacht schaut der Workflow im Postfach nach:\n- Mail hat einen **PDF-Anhang**\n- Mail hat **noch nicht** das Label \"Geprüft\"\n- Es werden die **10 neuesten** Mails geholt (der Rest kommt in den nächsten Nächten dran)\n\nBei einem Verbindungsfehler versucht der Workflow es bis zu **3-mal** (je 5 Sekunden Pause).",
+        "height": 796,
+        "width": 376,
+        "color": 4
+      }
     },
     {
-      "parameters": {
-        "content": "## 🔍 2. PDF finden & Text lesen\n\n- Wählt das beste PDF aus (falls mehrere Anhänge da sind)\n- Liest den Text aus dem PDF heraus\n- Baut daraus einen Text-Block für die KI (prompt_text)",
-        "height": 604,
-        "width": 504
-      },
       "id": "05d8155c-cf74-4e7d-868b-86bca07b1d8f",
       "name": "Notiz: PDF finden",
       "type": "n8n-nodes-base.stickyNote",
       "typeVersion": 1,
-      "position": [304, 240]
+      "position": [
+        304,
+        48
+      ],
+      "parameters": {
+        "content": "## 🔍 2. PDF finden & Text lesen\n\n- Wählt das beste PDF aus (falls mehrere Anhänge da sind)\n- Liest den Text aus dem PDF heraus\n- Baut daraus einen Text-Block für die KI: Betreff, **Mail-Absender** (nicht der Rechnungsaussteller) und PDF-Text\n- Kein Text im PDF (z. B. ein Scan)? Dann steht dort \"(kein PDF-Text extrahiert)\"",
+        "height": 796,
+        "width": 504
+      }
     },
     {
-      "parameters": {
-        "content": "## ❓ 4. Ist es eine Rechnung?\n\nPrüft: **istBeleg = true** UND **Betrag > 0**\n\n- ✅ Ja -> Mail bekommt zusätzlich Label \"Rechnung\", geht weiter zur Verarbeitung\n- ❌ Nein -> Mail wird nur als \"Geprüft\" markiert (Schritt 8), nichts landet im Sheet",
-        "height": 800,
-        "width": 424,
-        "color": 3
-      },
       "id": "bd0f459d-95af-4ea2-aeef-491728a3489f",
       "name": "Notiz: Echte Rechnung",
       "type": "n8n-nodes-base.stickyNote",
       "typeVersion": 1,
-      "position": [1376, 48]
+      "position": [
+        1376,
+        48
+      ],
+      "parameters": {
+        "content": "## ❓ 4. Ist es eine Rechnung?\n\nPrüft: **istBeleg = true** UND **Betrag > 0**\n\n- ✅ Ja -> Mail bekommt zusätzlich das Label \"Rechnung\" und geht weiter\n- ❌ Nein -> Mail wird nur als \"Geprüft\" markiert (Schritt 8), nichts landet im Sheet",
+        "height": 800,
+        "width": 424,
+        "color": 3
+      }
     },
     {
-      "parameters": {
-        "content": "## 💱 5. Währung umrechnen\n\n- Schon in EUR? -> nichts zu tun\n- Andere Währung (USD, THB, ...)? -> aktueller Kurs wird bei der EZB (frankfurter.dev) abgefragt\n\nFalls Währung dort unbekannt ist (z.B. AED): Originalbetrag wird übernommen, Workflow bricht nicht ab.",
-        "height": 800,
-        "width": 648,
-        "color": 4
-      },
       "id": "729d572f-94d9-4487-8b23-b2ed55f1faf7",
       "name": "Notiz: Währung",
       "type": "n8n-nodes-base.stickyNote",
       "typeVersion": 1,
-      "position": [1808, 48]
+      "position": [
+        1808,
+        48
+      ],
+      "parameters": {
+        "content": "## 💱 5. Währung umrechnen\n\n- Schon in EUR? -> nichts zu tun\n- Andere Währung (USD, THB, ...)? -> Der Kurs vom **Rechnungsdatum** wird bei der EZB (frankfurter.dev) abgefragt\n\nWährung dort unbekannt (z. B. AED)? Der Originalbetrag wird übernommen, die Spalte \"Währung\" zeigt die Originalwährung. Der Workflow bricht nicht ab.",
+        "height": 800,
+        "width": 648,
+        "color": 4
+      }
     },
     {
-      "parameters": {
-        "content": "## 📝 6. Ins Sheet schreiben\n\n- **Schlüssel** = Rechnungsnummer (oder Mail-ID als Fallback) -> verhindert doppelte Einträge\n- Duplikate innerhalb eines Laufs werden rausgefiltert\n- Zeile wird ins Sheet geschrieben (neu angelegt oder aktualisiert)",
-        "height": 800,
-        "width": 568,
-        "color": 5
-      },
       "id": "7165e15f-fd2c-414e-9c5e-f5ee73d943c1",
       "name": "Notiz: Ins Sheet schreiben",
       "type": "n8n-nodes-base.stickyNote",
       "typeVersion": 1,
-      "position": [2464, 48]
+      "position": [
+        2464,
+        48
+      ],
+      "parameters": {
+        "content": "## 📝 6. Ins Sheet schreiben\n\n- **Schlüssel** = erstes Wort des Händlers + Rechnungsnummer (z. B. `contabo-2885640001`). Fehlt die Nummer, wird die Mail-ID genommen.\n- Gleicher Schlüssel = **keine doppelte Zeile** (Duplikate im Lauf werden herausgefiltert)\n- Datum fehlt auf der Rechnung? Dann wird das Mail-Datum genommen\n- Die Zeile wird neu angelegt oder aktualisiert",
+        "height": 800,
+        "width": 568,
+        "color": 5
+      }
     },
     {
+      "id": "3c3dfaee-d03e-4956-b606-e0f21ab9dfd5",
+      "name": "Is EUR?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        1872,
+        256
+      ],
       "parameters": {
         "conditions": {
-          "options": { "caseSensitive": true, "leftValue": "", "typeValidation": "strict", "version": 3 },
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 3
+          },
           "conditions": [
             {
               "id": "e1",
               "leftValue": "={{ $json.output['Währung'] }}",
               "rightValue": "EUR",
-              "operator": { "type": "string", "operation": "equals" }
+              "operator": {
+                "type": "string",
+                "operation": "equals"
+              }
             }
           ],
           "combinator": "and"
         },
         "options": {}
-      },
-      "id": "3c3dfaee-d03e-4956-b606-e0f21ab9dfd5",
-      "name": "Is EUR?",
-      "type": "n8n-nodes-base.if",
-      "typeVersion": 2.3,
-      "position": [1872, 256]
+      }
     },
     {
-      "parameters": {
-        "content": "## 📎 7. PDF im Drive ablegen\n\n**Has PDF?**\n- War ein PDF dabei? -> weiter zum Upload\n- Kein PDF (reine Text-Erfassung)? -> wird übersprungen\n\n**Reattach PDF Binary** (PDF wieder anhängen)\n- Jedes Item hat 2 Teile: *Daten* (Text/Zahlen) und die *Datei* (das PDF)\n- Auf dem Weg bis hierher geht die Datei verloren (z. B. gibt der Sheet-Node nur die Zeile zurück)\n- Dieser Schritt holt das Original-PDF aus \"Find Invoice PDFs\" und hängt es wieder an\n\n**Upload to Drive**\n- Braucht die Datei im Feld `attachment_0`, sonst gibt es nichts hochzuladen\n- Lädt das PDF in den Rechnungsordner in Google Drive hoch",
-        "height": 960,
-        "width": 584,
-        "color": 4
-      },
       "id": "b6459c3f-ea57-4f92-9238-60b579ebf5a4",
       "name": "Notiz: PDF ablegen",
       "type": "n8n-nodes-base.stickyNote",
       "typeVersion": 1,
-      "position": [3040, -112]
+      "position": [
+        3040,
+        -112
+      ],
+      "parameters": {
+        "content": "## 📎 7. PDF im Drive ablegen\n\n**Has PDF?**\n- War ein PDF dabei? -> weiter zum Upload\n- Kein PDF (reine Text-Erfassung)? -> wird übersprungen\n\n**Reattach PDF Binary** (PDF wieder anhängen)\n- Jedes Item hat 2 Teile: *Daten* (Text/Zahlen) und die *Datei* (das PDF)\n- Auf dem Weg bis hierher geht die Datei verloren (z. B. gibt der Sheet-Node nur die Zeile zurück)\n- Dieser Schritt holt das Original-PDF aus \"Find Invoice PDFs\" und hängt es wieder an\n\n**Upload to Drive**\n- Braucht die Datei im Feld `attachment_0`, sonst gibt es nichts hochzuladen\n- Lädt das PDF in den Rechnungsordner in Google Drive hoch\n- Bei einem Fehler: bis zu 3 Versuche",
+        "height": 960,
+        "width": 584,
+        "color": 4
+      }
     },
     {
-      "parameters": {
-        "content": "## ✅ 8. Mail als \"erledigt\" markieren\n\nJede verarbeitete Mail bekommt das Label **\"Geprüft\"** - egal ob Rechnung oder nicht.\n\nDas ist nur ein \"wurde schon angeschaut\"-Stempel, damit die Mail beim nächsten Lauf nicht nochmal gescannt wird.",
-        "height": 800,
-        "width": 428,
-        "color": 6
-      },
       "id": "5235282c-9ffc-46c6-b632-0c375fbddf98",
       "name": "Notiz: Als geprüft markieren",
       "type": "n8n-nodes-base.stickyNote",
       "typeVersion": 1,
-      "position": [3632, 48]
+      "position": [
+        3632,
+        48
+      ],
+      "parameters": {
+        "content": "## ✅ 8. Mail als \"erledigt\" markieren\n\nJede verarbeitete Mail bekommt das Label **\"Geprüft\"** - egal ob Rechnung oder nicht.\n\nDas ist der \"wurde schon angeschaut\"-Stempel: Die Mail wird in der nächsten Nacht nicht noch einmal gescannt.\n\n**Fehler?** Klappt das Label auch nach 3 Versuchen nicht, stoppt der Workflow und schickt einen **Telegram-Alarm** (Workflow, Node, Fehlertext).",
+        "height": 800,
+        "width": 428,
+        "color": 6
+      }
     },
     {
-      "parameters": {
-        "content": "## 🤖 3. KI liest die Rechnung\n\nDie KI (gpt-5-mini) bekommt den PDF-Text und soll rausfinden:\n- Absender, Rechnungsnummer, Datum, Betrag, Währung\n- **istBeleg**: Ist das überhaupt eine echte Rechnung? (nicht: Angebot, Werbung, AGB)\n\nDanach werden PDF-Daten und KI-Ergebnis wieder zusammengeführt.",
-        "height": 604,
-        "width": 552,
-        "color": 5
-      },
       "id": "2a6e696d-aa66-4680-bef5-3bc8a830ae0f",
       "name": "Notiz: KI liest Rechnung",
       "type": "n8n-nodes-base.stickyNote",
       "typeVersion": 1,
-      "position": [816, 240]
+      "position": [
+        816,
+        48
+      ],
+      "parameters": {
+        "content": "## 🤖 3. KI liest die Rechnung\n\nDie KI (gpt-5-mini) bekommt den Text-Block und soll herausfinden:\n- Absender (der **Händler**, nicht die Zahlungsfirma), Rechnungsnummer, Datum (TT-MM-JJJJ), Betrag, Währung\n- **istBeleg**: Ist das überhaupt eine echte Rechnung? (nicht: Angebot, Werbung, AGB)\n\nDanach werden PDF-Daten und KI-Ergebnis wieder zusammengeführt.",
+        "height": 796,
+        "width": 552,
+        "color": 5
+      }
+    },
+    {
+      "id": "5f0c1e2a-7a3b-4c1d-9e8f-0a1b2c3d4e5f",
+      "name": "Notiz: Fehlerbehandlung",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        -80,
+        900
+      ],
+      "parameters": {
+        "content": "## 🚨 Fehlerbehandlung\n\n**Wenn etwas schiefgeht:**\n- Gmail, Sheets und Drive werden bis zu **3-mal** versucht (je 5 Sekunden Pause)\n- OpenAI wird bis zu **2-mal** wiederholt (Timeout 60 Sekunden)\n- Hilft das nicht, bricht der Lauf ab und der **Error-Workflow** schickt eine **Telegram-Nachricht** (Workflow, Node, Fehlertext, Link zur Ausführung)\n\n**Bewusst ohne Alarm** (der Lauf geht weiter):\n- **Währung unbekannt** (z. B. AED): Der Originalbetrag wird übernommen\n- **PDF ohne Text** (z. B. ein Scan): Die KI sieht nur Betreff und Absender, meist ergibt das \"keine Rechnung\"\n\n**Nach einem Abbruch:**\n- Mails ohne Label \"Geprüft\" werden in der nächsten Nacht erneut versucht\n- Doppelte Zeilen verhindert der Schlüssel (Schritt 6)",
+        "height": 520,
+        "width": 560,
+        "color": 2
+      }
     }
   ],
   "connections": {
-    "Schedule Trigger": { "main": [[{ "node": "Get Invoice Mails", "type": "main", "index": 0 }]] },
-    "Get Invoice Mails": { "main": [[{ "node": "Find Invoice PDFs", "type": "main", "index": 0 }]] },
-    "Find Invoice PDFs": { "main": [[{ "node": "Extract from File", "type": "main", "index": 0 }]] },
-    "Build Prompt Text": {
-      "main": [[
-        { "node": "Parse Invoice Data", "type": "main", "index": 0 },
-        { "node": "Combine PDF and Extraction", "type": "main", "index": 0 }
-      ]]
+    "Schedule Trigger": {
+      "main": [
+        [
+          {
+            "node": "Get Invoice Mails",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     },
-    "Parse Invoice Data": { "main": [[{ "node": "Combine PDF and Extraction", "type": "main", "index": 1 }]] },
-    "OpenAI Chat Model": { "ai_languageModel": [[{ "node": "Parse Invoice Data", "type": "ai_languageModel", "index": 0 }]] },
-    "Combine PDF and Extraction": { "main": [[{ "node": "Is Invoice?", "type": "main", "index": 0 }]] },
+    "Get Invoice Mails": {
+      "main": [
+        [
+          {
+            "node": "Find Invoice PDFs",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Find Invoice PDFs": {
+      "main": [
+        [
+          {
+            "node": "Extract from File",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Build Prompt Text": {
+      "main": [
+        [
+          {
+            "node": "Parse Invoice Data",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Combine PDF and Extraction",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Parse Invoice Data": {
+      "main": [
+        [
+          {
+            "node": "Combine PDF and Extraction",
+            "type": "main",
+            "index": 1
+          }
+        ]
+      ]
+    },
+    "OpenAI Chat Model": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "Parse Invoice Data",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Combine PDF and Extraction": {
+      "main": [
+        [
+          {
+            "node": "Is Invoice?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
     "Is Invoice?": {
       "main": [
         [
-          { "node": "Rechnung labeln", "type": "main", "index": 0 },
-          { "node": "Is EUR?", "type": "main", "index": 0 }
+          {
+            "node": "Rechnung labeln",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Is EUR?",
+            "type": "main",
+            "index": 0
+          }
         ],
-        [{ "node": "Als geprüft markieren", "type": "main", "index": 0 }]
+        [
+          {
+            "node": "Als geprüft markieren",
+            "type": "main",
+            "index": 0
+          }
+        ]
       ]
     },
-    "Set Key": { "main": [[{ "node": "Remove Duplicates", "type": "main", "index": 0 }]] },
-    "Remove Duplicates": { "main": [[{ "node": "Rechnung ins Sheet", "type": "main", "index": 0 }]] },
+    "Set Key": {
+      "main": [
+        [
+          {
+            "node": "Remove Duplicates",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Remove Duplicates": {
+      "main": [
+        [
+          {
+            "node": "Rechnung ins Sheet",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
     "Has PDF?": {
       "main": [
-        [{ "node": "Reattach PDF Binary", "type": "main", "index": 0 }],
-        [{ "node": "Als geprüft markieren", "type": "main", "index": 0 }]
+        [
+          {
+            "node": "Reattach PDF Binary",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Als geprüft markieren",
+            "type": "main",
+            "index": 0
+          }
+        ]
       ]
     },
-    "Upload to Drive": { "main": [[{ "node": "Als geprüft markieren", "type": "main", "index": 0 }]] },
-    "Get Exchange Rate": { "main": [[{ "node": "Apply FX Conversion", "type": "main", "index": 0 }]] },
-    "Mark as EUR": { "main": [[{ "node": "Set Key", "type": "main", "index": 0 }]] },
-    "Apply FX Conversion": { "main": [[{ "node": "Set Key", "type": "main", "index": 0 }]] },
-    "Rechnung ins Sheet": { "main": [[{ "node": "Has PDF?", "type": "main", "index": 0 }]] },
-    "Reattach PDF Binary": { "main": [[{ "node": "Upload to Drive", "type": "main", "index": 0 }]] },
-    "Extract from File": { "main": [[{ "node": "Build Prompt Text", "type": "main", "index": 0 }]] },
+    "Upload to Drive": {
+      "main": [
+        [
+          {
+            "node": "Als geprüft markieren",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get Exchange Rate": {
+      "main": [
+        [
+          {
+            "node": "Apply FX Conversion",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Mark as EUR": {
+      "main": [
+        [
+          {
+            "node": "Set Key",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Apply FX Conversion": {
+      "main": [
+        [
+          {
+            "node": "Set Key",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Rechnung ins Sheet": {
+      "main": [
+        [
+          {
+            "node": "Has PDF?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Reattach PDF Binary": {
+      "main": [
+        [
+          {
+            "node": "Upload to Drive",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Extract from File": {
+      "main": [
+        [
+          {
+            "node": "Build Prompt Text",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
     "Is EUR?": {
       "main": [
-        [{ "node": "Mark as EUR", "type": "main", "index": 0 }],
-        [{ "node": "Get Exchange Rate", "type": "main", "index": 0 }]
+        [
+          {
+            "node": "Mark as EUR",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Get Exchange Rate",
+            "type": "main",
+            "index": 0
+          }
+        ]
       ]
     }
   },
