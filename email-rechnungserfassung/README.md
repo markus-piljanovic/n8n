@@ -32,9 +32,14 @@ Schickt bei einem abgebrochenen Lauf eine Telegram-Nachricht mit Workflow, Node,
 
 - Retry (3 Versuche, 5 Sekunden Pause) bei Gmail, Sheets und Drive. OpenAI mit 2 Wiederholungen und Timeout
 - Error-Workflow mit Telegram-Alarm
+- Ping an Healthchecks.io einmal pro Lauf (direkt nach dem Start). Bleibt er aus, schlägt dort Alarm, auch wenn n8n oder der Server nicht mehr läuft und der Error-Workflow deshalb nichts melden kann
 - Stabiler Schlüssel gegen doppelte Zeilen, auch nach einem Abbruch
 - Bewusst ohne Alarm: unbekannte Währung (der Originalbetrag wird übernommen) und PDFs ohne Text
 - Läuft bewusst ohne manuelle Freigabe (reine Hintergrund-Buchhaltung)
+
+## Getestet
+
+Mit je fünf Test-PDFs geprüft: echte Rechnungen (auch in Fremdwährung) und Dokumente, die keine Rechnung sind (Angebot, Kostenvoranschlag, Preisliste, AGB, Kursinfo). Beide Gruppen wurden richtig eingeordnet, doppelte Einträge wurden verhindert.
 
 ## Einrichtung
 
@@ -42,6 +47,7 @@ Schickt bei einem abgebrochenen Lauf eine Telegram-Nachricht mit Workflow, Node,
 2. In Gmail die Labels "Geprüft" und "Rechnung" anlegen und in den beiden Label-Nodes auswählen
 3. Ein Google Sheet mit den Spalten Absender, Rechnungsnummer, Datum, Betrag, Währung, Dateiname und Schlüssel anlegen
 4. Im Rechnungs-Workflow unter Einstellungen den Error Workflow auswählen
+5. Bei Healthchecks.io einen Check anlegen (Period 1 Tag, Grace Time 1 Stunde) und die Ping-URL im Node "Healthcheck-Ping" eintragen (`YOUR_HEALTHCHECK_UUID`)
 
 ## Hinweise
 
