@@ -73,7 +73,6 @@ Die Freigabe per Telegram liegt in einem eigenen kleinen Workflow. Der Hauptwork
 
 Der Workflow wurde live mit über 20 Testfällen geprüft (Formular, E-Mail, gleichzeitige Anfragen, Rückfragen, Freigabe, Fehlerfall). Dabei sind sechs Fehler aufgefallen, die ich behoben habe. Zwei davon sind für n8n-Workflows allgemein interessant:
 
-- **n8n arbeitet parallele Zweige nach der Position auf der Arbeitsfläche ab, von oben nach unten** (bei der Einstellung `executionOrder: v1`). Das habe ich mit einem kleinen Testworkflow belegt. Der Node "Form Ending" (Dankeseite) wartet, bis der Browser die Seite abholt. Schließt ein Besucher den Tab sofort, bleibt der Lauf dort hängen, und alles, was danach kommen sollte, läuft nie. Deshalb liegen die Antwort-Seiten im Workflow bewusst **unter** den Zweigen für Speichern, Telegram und Mails. Das ist auch in den Sticky Notes erklärt.
 - **Warten blockiert den ganzen Lauf.** Die Freigabe per Telegram (`Send and Wait`) steckt deshalb in einem eigenen Workflow, der ohne Warten gestartet wird.
 - **Merge nach Position bricht bei mehreren Einträgen pro Lauf.** Liefert die Suche nur einen Treffer für zwei Leads, verwechselt die Zuordnung nach Position die Leads. Der Merge-Node ordnet deshalb über die E-Mail-Adresse zu.
 
