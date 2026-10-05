@@ -55,6 +55,7 @@ Die Freigabe per Telegram liegt in einem eigenen kleinen Workflow. Der Hauptwork
 | spam | 0 | Werbung, Phishing, unpassend | nur gespeichert |
 
 - Der Score wird im Code-Node **immer in den Bereich der Kategorie gezwungen**, damit Kategorie, Score, Priorität und Status in Airtable zusammenpassen.
+- **Temperature 0** am Chat-Modell, für möglichst gleichbleibende Bewertungen. Ganz verhindert das Schwankungen nicht (derselbe Text bekam im Test einmal warm 65, sonst hot 82 bis 85). Deshalb sichern feste Regeln im Code ab.
 - **Rückfrage** vergibt die KI nur, wenn die Nachricht keinen Bedarf zeigt und die beiden Auswahlfelder (Thema, Zeitrahmen) leer sind. Wer wenig schreibt, aber ein Thema und einen Zeitrahmen wählt, wird normal bewertet.
 - Der Agent bekommt den Nachrichtentext in eigenen Markern und die Anweisung, Inhalte aus Nachricht und Webseiten nur als Daten zu behandeln (Schutz vor eingeschleusten Anweisungen).
 - Fällt die KI aus, wird der Lead als **warm mit Hinweis "manuell prüfen"** gespeichert. Es geht kein Lead verloren.
